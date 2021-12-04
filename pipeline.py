@@ -11,8 +11,12 @@ import time
 
 # S3 Document Data:
 # YOU NEED TO CREATE S3 BUCKET AND ADD IMAGES TO IT THROUGH AWS CONSOLE
-s3BucketName = "demovaccinecards"
-documentName = "card1.png"
+s3BucketVaccineCards = "demovaccinecards" 
+vaccineCardFile = "card1.png"
+
+# YOU NEED TO CREATE S3 BUCKET ONLY 
+s3BucketTextractTextOutput = "demotextracttextoutputs" 
+textractOutputFileName = "textract1.txt" # THIS IS FOR UPLOADING ONLY DON'T CREATE THIS FILE
 
 ## Textract APIs used - "start_document_text_detection", "get_document_text_detection"
 def InvokeTextDetectJob(s3BucketName, objectName):
@@ -59,16 +63,29 @@ def JobResults(jobId):
                 nextToken = response['NextToken']
     return pages
 
+# https://stackoverflow.com/questions/40336918/how-to-write-a-file-or-data-to-an-s3-object-using-boto3
+def upload_txt_to_bucket(s3BucketName, content, filename):
+    s3 = boto3.resource('s3')
+    s3.Object(s3BucketName, filename).put(Body=content)
+
 # Function invokes
-jobId = InvokeTextDetectJob(s3BucketName, documentName)
+
+textractText = ""
+
+jobId = InvokeTextDetectJob(s3BucketVaccineCards, vaccineCardFile)
 print("Started job with id: {}".format(jobId))
 if(CheckJobComplete(jobId)):
     response = JobResults(jobId)
     for resultPage in response:
         for item in resultPage["Blocks"]:
             if item["BlockType"] == "LINE":
-                print ('\033[94m' + item["Text"] + '\033[0m ')
-                print (' \033[94m' + str(item["Confidence"]) + '\033[0m')
+                textractText += item["Text"]
+                textractText += "\n"
+                #print ('\033[94m' + item["Text"] + '\033[0m ')
+                #print (' \033[94m' + str(item["Confidence"]) + '\033[0m')
+#print(textractText)
+upload_txt_to_bucket(s3BucketTextractTextOutput, textractText, textractOutputFileName)
+
 
 # Let's use Amazon S3
 #s3 = boto3.resource('s3')
