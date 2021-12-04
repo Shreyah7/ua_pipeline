@@ -9,6 +9,11 @@
 import boto3
 import time
 
+# S3 Document Data:
+# YOU NEED TO CREATE S3 BUCKET AND ADD IMAGES TO IT THROUGH AWS CONSOLE
+s3BucketName = "demovaccinecards"
+documentName = "card1.png"
+
 ## Textract APIs used - "start_document_text_detection", "get_document_text_detection"
 def InvokeTextDetectJob(s3BucketName, objectName):
     response = None
@@ -53,10 +58,6 @@ def JobResults(jobId):
             if('NextToken' in response):
                 nextToken = response['NextToken']
     return pages
-
-# S3 Document Data
-s3BucketName = "demovaccinecards"
-documentName = "card1.png"
 
 # Function invokes
 jobId = InvokeTextDetectJob(s3BucketName, documentName)
