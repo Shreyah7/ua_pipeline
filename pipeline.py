@@ -31,6 +31,16 @@ def InvokeTextDetectJob(s3BucketName, objectName):
            })
     return response["JobId"]
 
+## Comprehend APIs used
+def InvokeComprehendJob(inputText):
+    response = None
+    client = boto3.client('comprehend')
+    response = client.detect_entities(
+            Text=inputText,
+            LanguageCode='en',
+    )
+    return response
+
 def CheckJobComplete(jobId):
     time.sleep(5)
     client = boto3.client('textract')
@@ -70,30 +80,38 @@ def upload_txt_to_bucket(s3BucketName, content, filename):
 
 # Function invokes
 
-textractText = ""
+def runTextract():
+    text = ""
+    textractJobId = InvokeTextDetectJob(s3BucketVaccineCards, vaccineCardFile)
+    print("Started job with id: {}".format(textractJobId))
+    if(CheckJobComplete(textractJobId)):
+        response = JobResults(textractJobId)
+        for resultPage in response:
+            for item in resultPage["Blocks"]:
+                if item["BlockType"] == "LINE":
+                    text += item["Text"]
+                    text += "\n"
+                    #print ('\033[94m' + item["Text"] + '\033[0m ')
+                    #print (' \033[94m' + str(item["Confidence"]) + '\033[0m')
+    #print(textractText)
+    return text
+    #upload_txt_to_bucket(s3BucketTextractTextOutput, textractText, textractOutputFileName)
 
-jobId = InvokeTextDetectJob(s3BucketVaccineCards, vaccineCardFile)
-print("Started job with id: {}".format(jobId))
-if(CheckJobComplete(jobId)):
-    response = JobResults(jobId)
-    for resultPage in response:
-        for item in resultPage["Blocks"]:
-            if item["BlockType"] == "LINE":
-                textractText += item["Text"]
-                textractText += "\n"
-                #print ('\033[94m' + item["Text"] + '\033[0m ')
-                #print (' \033[94m' + str(item["Confidence"]) + '\033[0m')
-#print(textractText)
-upload_txt_to_bucket(s3BucketTextractTextOutput, textractText, textractOutputFileName)
+# IDENTIFY NAMES
+def runComprehension(textractText):
+    response = InvokeComprehendJob(textractText)
+    for entity in response['Entities']:
+        if (entity["Type"] == "PERSON"):
+            print(entity["Text"])
+
+#textractText = "COVID-19 Vaccination Record Card\n Please keep this record card, which includes medical \
+#                information\n <\nCDC.\nabout the vaccines you have received.\n***\n-\nPor favor, guarde esta \
+#                tarjeta de registro, que incluye información\nmédica sobre las vacunas que ha recibido.\nPrasad, \
+#                \nLast Name\nShreyah\nFirst Name\nMI\n8-3-2001\nDate of birth\nPatient number (medical record \
+#                or IIS record number)\nProduct Name/Manufacturer\nHealthcare Professional\nVaccine\nDate\nLot Number \
+#                \nor Clinic Site\n1st Dose\nAfizer\7/19/21\nCOVID-19\nmm dd yy\nwaguzss\nFA6780\n2nd Dose\nPfizer \
+#                \n8 11 a\nWalgrees\nCOVID-19\nPA7484\nmm dd yy\n9355"
+textractText = runTextract()
+runComprehension(textractText)
 
 
-# Let's use Amazon S3
-#s3 = boto3.resource('s3')
-
-# Print out bucket names
-#for bucket in s3.buckets.all():
-    #print(bucket.name)
-
-# Upload a new file
-#data = open('test.jpg', 'rb')
-#s3.Bucket('my-bucket').put_object(Key='test.jpg', Body=data)
